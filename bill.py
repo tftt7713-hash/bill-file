@@ -5,7 +5,7 @@ import os
 import re
 import google.generativeai as genai
 
-# --- GOOGLE GEMINI AI SETUP (SECURE METHOD) ---
+# --- GOOGLE GEMINI AI SETUP (100% SECURE FOR LEAKS) ---
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 else:
@@ -84,10 +84,57 @@ def save_and_clear_form():
 # --- APP INTERFACE ---
 st.title("📊 Smart Business Billing Tracker")
 
+# --- ADVANCED AI CHATBOT LOGIC ---
+def ask_gemini_advanced(user_query, df):
+    if "GEMINI_API_KEY" not in st.secrets or st.secrets["GEMINI_API_KEY"] == "":
+        return "⚠️ Kripya share.streamlit.io ki Settings -> Secrets mein 'GEMINI_API_KEY' daalein!"
+    
+    data_text = df.to_string(index=False)
+    
+    system_instruction = f"""
+    You are a Smart Business AI Assistant. Below is the sales data of the business:
+    {data_text}
+    The user will ask about a specific product in Hindi, English, or Gujarati.
+    Your job is to output a clean list or table.
+    STRICT RULES:
+    1. Filter ONLY the customers who bought the requested product.
+    2. Display: Customer Name, City, SPECIFIC QUANTITY of requested product only, Total Bill Amount.
+    3. Respond in a friendly Hinglish/Hindi or Gujarati table.
+    4. Handle spelling mistakes smartly.
+    """
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        response = model.generate_content([system_instruction, user_query])
+        return response.text
+    except Exception as e:
+        return f"❌ AI Connection Error: {str(e)}"
+
+# --- 🤖 AI BOT MAIN SCREEN PAR SABSE UPAR ---
+df = st.session_state.business_df
+st.markdown("### 🤖 MunimJi AI Assistant")
+st.write("Aap Hindi/Gujarati/English mein kuch bhi pooch sakte hain:")
+
+user_ai_query = st.text_input(
+    "Sawaal Likhein:", 
+    placeholder="e.g., Sarva Aushadhi kone ketli lidhi chhe?",
+    key="main_page_ai_query"
+)
+
+if st.button("✨ AI Se Poochein", key="main_page_ai_btn"):
+    if user_ai_query:
+        with st.spinner("AI Bill Check Kar Raha Hai..."):
+            ai_response = ask_gemini_advanced(user_ai_query, df)
+            st.markdown("---")
+            st.markdown("**🤖 AI Ka Jawab:**")
+            st.info(ai_response)
+    else:
+        st.warning("Kripya pehle apna sawaal likhein!")
+
+st.write("---")
+
+# --- SIDEBAR MENU ---
 menu = ["📝 Naya Bill Upload Karen", "🔍 Search Dashboard", "⚙️ Data Modify (Edit / Delete)"]
 choice = st.sidebar.selectbox("Menu Chuniye", menu)
-
-df = st.session_state.business_df
 
 # --- 1. DATA ENTRY SECTION ---
 if choice == "📝 Naya Bill Upload Karen":
@@ -184,43 +231,9 @@ elif choice == "⚙️ Data Modify (Edit / Delete)":
                 st.write(f"🔹 **Samaan #{idx+1}**")
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    new_item_name = st.text_input(f"Naam", value=old_name, key=f"edit_item_name_{idx}_{selected_index}")
+                    new_item_name = st.text_input(f"Naam #{idx+1}", value=old_name, key=f"edit_item_name_{idx}_{selected_index}")
                 with col2:
-                    new_item_qty = st.number_input(f"Qty", min_value=1, value=old_qty, key=f"edit_item_qty_{idx}_{selected_index}")
+                    new_item_qty = st.number_input(f"Qty #{idx+1}", min_value=1, value=old_qty, key=f"edit_item_qty_{idx}_{selected_index}")
                 with col3:
                     st.write("")
                     if st.button("🗑️ Hatayen", key=f"del_item_btn_{idx}_{selected_index}"):
-                        st.session_state[f"current_items_{selected_index}"].pop(idx)
-                        st.rerun()
-                
-                updated_items_list.append(f"{new_item_qty} Kilo/Pcs {new_item_name.strip()}")
-            
-            st.write("---")
-            new_bill_amount = st.number_input("💰 Naya Total Bill Amount (₹)", value=float(selected_row['Total_Bill']))
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("💾 Badlav Save Karen (Update Everything)"):
-                    if edit_name.strip() and edit_city.strip() and updated_items_list:
-                        df.at[selected_index, 'Customer_Name'] = edit_name.strip()
-                        df.at[selected_index, 'City'] = edit_city.strip()
-                        df.at[selected_index, 'Order_Date'] = edit_date.strip()
-                        df.at[selected_index, 'Items_List'] = ", ".join(updated_items_list)
-                        df.at[selected_index, 'Total_Bill'] = float(new_bill_amount)
-                        
-                        st.session_state.business_df = df
-                        df.to_csv(DATA_FILE, index=False)
-                        
-                        if f"current_items_{selected_index}" in st.session_state:
-                            del st.session_state[f"current_items_{selected_index}"]
-                        
-                        st.success("✅ Aapka badlav sahi se update ho gaya!")
-                        st.rerun()
-                    else:
-                        st.error("❌ Kripya dhyan edin ki Naam, Shahar aur kam se kam ek Samaan hona zaroori hai!")
-                        
-            with col2:
-                if st.button("🗑️ Yeh Poora Bill Delete Karen"):
-                    df = df.drop(selected_index).reset_index(drop=True)
-                    st.session_state.business_df = df
-                    df.to_csv(DATA_FILE, index=False)
