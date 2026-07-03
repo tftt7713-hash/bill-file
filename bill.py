@@ -200,7 +200,7 @@ elif choice == "⚙️ Data Modify (Edit / Delete)":
         selected_option = st.selectbox("Badalne ke liye Bill Chuniye:", bill_options)
         
         if selected_option:
-            selected_index = int(selected_option.split(" | ").split(" "))
+            selected_index = int(selected_option.split(" | ")[0].split(" ")[1])
             selected_row = df.loc[selected_index]
             
             st.markdown("---")
