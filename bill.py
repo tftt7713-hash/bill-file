@@ -7,7 +7,7 @@ import google.generativeai as genai
 
 # --- GOOGLE GEMINI AI SETUP (SECURE METHOD) ---
 if "GEMINI_API_KEY" in st.secrets:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    genai.configure(api_key=st.secrets["AQ.Ab8RN6KSPA8G6vbh3UB4d3rv1SbIDZgNgdboGdsTxtufow7lEA"])
 else:
     pass
 
