@@ -190,7 +190,7 @@ open_bot = st.sidebar.checkbox("💬 Open Smart AI Bot", value=True)
 if open_bot:
     with st.sidebar.container():
         st.write("---")
-        st.markdown("#### **🤖 MunimJi AI Bot**")
+        st.markdown("#### **🤖 Om Guru Gautam**")
         st.write("Aap Hindi/Gujarati/English mein kuch bhi pooch sakte hain:")
         
         user_ai_query = st.text_input(
