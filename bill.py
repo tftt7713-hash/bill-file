@@ -138,7 +138,7 @@ elif choice == "🔍 Search Dashboard":
             mask = df['Items_List'].apply(lambda x: smart_match(search_product, x))
             st.dataframe(df[mask][['Order_Date', 'Customer_Name', 'City', 'Total_Bill', 'Items_List']], use_container_width=True)
 
-# --- 3. ADVANCED EDIT / DELETE MANAGEMENT (WITH SPECIFIC ITEM DELETE BUTTON) ⚙️ ---
+# --- 3. ADVANCED EDIT / DELETE MANAGEMENT ⚙️ ---
 elif choice == "⚙️ Data Modify (Edit / Delete)":
     st.header("⚙️ Samaan, Quantity ya Address Badlein")
     
@@ -152,13 +152,12 @@ elif choice == "⚙️ Data Modify (Edit / Delete)":
         selected_option = st.selectbox("Badalne ke liye Bill Chuniye:", bill_options)
         
         if selected_option:
-            selected_index = int(selected_option.split(" | ").split(" "))
+            selected_index = int(selected_option.split(" | ")[0].split(" ")[1])
             selected_row = df.loc[selected_index]
             
             st.markdown("---")
             st.subheader("📝 Bill Sudharen (Edit Section)")
             
-            # Name, Address, Date inputs
             edit_name = st.text_input("👤 Customer Name (Naam Badlein)", value=selected_row['Customer_Name'])
             edit_city = st.text_input("📍 City / Address (Address Badlein)", value=selected_row['City'])
             edit_date = st.text_input("📅 Date (YYYY-MM-DD)", value=selected_row['Order_Date'])
@@ -167,14 +166,12 @@ elif choice == "⚙️ Data Modify (Edit / Delete)":
             
             raw_items = [i.strip() for i in selected_row['Items_List'].split(",") if i.strip()]
             
-            # Temporary state banana items ko tracking par rakhne ke liye
             if f"current_items_{selected_index}" not in st.session_state:
                 st.session_state[f"current_items_{selected_index}"] = raw_items
             
             updated_items_list = []
             
-            # Har ek item ko table form mein dikhana
-            for idx, item in enumerate(st.session_state[f"current_items_{selected_index}"]):
+            for idx, item in enumerate(list(st.session_state[f"current_items_{selected_index}"])):
                 match = re.match(r"(\d+)\s+Kilo/Pcs\s+(.*)", item)
                 if match:
                     old_qty = int(match.group(1))
@@ -184,16 +181,14 @@ elif choice == "⚙️ Data Modify (Edit / Delete)":
                     old_name = item
                 
                 st.write(f"🔹 **Samaan #{idx+1}**")
-                col1, col2, col3 = st.columns([2, 1, 1])
+                col1, col2, col3 = st.columns(3)
                 with col1:
                     new_item_name = st.text_input(f"Naam", value=old_name, key=f"edit_item_name_{idx}_{selected_index}")
                 with col2:
                     new_item_qty = st.number_input(f"Qty", min_value=1, value=old_qty, key=f"edit_item_qty_{idx}_{selected_index}")
                 with col3:
-                    st.write(" ") # Layout balance ke liye
-                    # --- NAYA LAAL RANG KA DELETE BUTTON ---
+                    st.write("")
                     if st.button("🗑️ Hatayen", key=f"del_item_btn_{idx}_{selected_index}"):
-                        # List se us item ko remove karna
                         st.session_state[f"current_items_{selected_index}"].pop(idx)
                         st.rerun()
                 
@@ -215,13 +210,17 @@ elif choice == "⚙️ Data Modify (Edit / Delete)":
                         st.session_state.business_df = df
                         df.to_csv(DATA_FILE, index=False)
                         
-                        # Storage clean up badlav ke baad
-                        del st.session_state[f"current_items_{selected_index}"]
+                        if f"current_items_{selected_index}" in st.session_state:
+                            del st.session_state[f"current_items_{selected_index}"]
                         
                         st.success("✅ Aapka badlav sahi se update ho gaya!")
                         st.rerun()
                     else:
-                        st.error("❌ Kripya dhyan dein ki Naam, Shahar aur kam se kam ek Samaan hona zaroori hai!")
+                        st.error("❌ Kripya dhyan edin ki Naam, Shahar aur kam se kam ek Samaan hona zaroori hai!")
                         
             with col2:
+                # LINE 227 KI SPACING KO MAINE EKDEUM SAHI KAR DIYA HAI 👍
                 if st.button("🗑️ Yeh Poora Bill Delete Karen"):
+                    df = df.drop(selected_index).reset_index(drop=True)
+                    st.session_state.business_df = df
+                    df.to_csv(DATA_FILE, index=False)
