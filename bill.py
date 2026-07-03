@@ -5,7 +5,7 @@ import os
 import re
 import google.generativeai as genai
 
-# --- GOOGLE GEMINI AI SETUP (100% SECURE FOR LEAKS) ---
+# --- GOOGLE GEMINI AI SETUP (SECURE METHOD) ---
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 else:
@@ -237,3 +237,5 @@ elif choice == "⚙️ Data Modify (Edit / Delete)":
                 with col3:
                     st.write("")
                     if st.button("🗑️ Hatayen", key=f"del_item_btn_{idx}_{selected_index}"):
+                        st.session_state[f"current_items_{selected_index}"].pop(idx)
+                        st.rerun()
