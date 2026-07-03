@@ -4,11 +4,15 @@ from datetime import datetime
 import os
 import re
 
-# --- GOOGLE GEMINI AI SETUP ---
+# --- GOOGLE GEMINI AI SETUP (SECURE METHOD) ---
 import google.generativeai as genai
 
-# YAHAN APNI GEMINI API KEY PASTE KAREIN
-GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"
+# Code ab direct Streamlit ki secure tijori (Secrets) se key uthayega
+if "GEMINI_API_KEY" in st.secrets:
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+else:
+    # Agar aap local computer mein chala rahe hain toh yahan apni key daal sakte hain
+    GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"
 
 if GEMINI_API_KEY != "YOUR_GEMINI_API_KEY_HERE":
     genai.configure(api_key=GEMINI_API_KEY)
@@ -30,15 +34,13 @@ if 'business_df' not in st.session_state:
 if 'item_rows' not in st.session_state:
     st.session_state.item_rows = [{"name": "", "qty": 1, "price": 0.0}]
 
-# --- COMFORTABLE AI BOT LOGIC FOR SPECIFIC EXTRACTION ---
+# --- SMART SEARCH & AI BOT LOGIC ---
 def ask_gemini_advanced(user_query, df):
-    if GEMINI_API_KEY == "YOUR_GEMINI_API_KEY_HERE":
-        return "⚠️ Kripya pehle app.py code mein apni Google Gemini API Key set karein!"
+    if GEMINI_API_KEY == "YOUR_GEMINI_API_KEY_HERE" or GEMINI_API_KEY == "":
+        return "⚠️ Kripya Streamlit Cloud ki Advanced Settings -> Secrets mein apni 'GEMINI_API_KEY' set karein!"
     
-    # Pura data text format mein AI ko bhejna
     data_text = df.to_string(index=False)
     
-    # AI ko sakht nirdesh (System Instruction) dena taaki woh aapke format mein hi jawab de
     system_instruction = f"""
     You are a Smart Business AI Assistant. Below is the sales data of the business:
     {data_text}
@@ -80,7 +82,6 @@ def save_and_clear_form():
         i_price = st.session_state.get(f"item_price_{i}", 0.0)
         
         if i_name and i_price > 0:
-            # Data entry ke samay hi Quantity ko jodna taaki AI use padh sake
             valid_items.append(f"{i_qty} Kilo/Pcs {i_name}")
             calculated_total += i_price
 
@@ -127,7 +128,7 @@ if choice == "📝 Naya Bill Upload Karen":
     
     running_total = 0.0
     for idx, row in enumerate(st.session_state.item_rows):
-        col1, col2, col3 = st.columns([2, 1, 1])
+        col1, col2, col3 = st.columns()
         with col1:
             st.text_input(f"Samaan #{idx+1} Ka Naam", key=f"item_name_{idx}", placeholder="e.g., Sarva Aushadhi")
         with col2:
@@ -149,13 +150,12 @@ elif choice == "🔍 Search Dashboard":
     st.write("Yahan aapka normal billing data table dikhega.")
     st.dataframe(df, use_container_width=True)
 
-# --- FLOATING STYLE AI BOT POP-UP (BOTTOM RIGHT SIDEBAR EFFECT) ---
+# --- AI BOT POP-UP IN SIDEBAR ---
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🤖 Live AI Assistant")
 open_bot = st.sidebar.checkbox("💬 Open Smart AI Bot", value=True)
 
 if open_bot:
-    # Sidebar ke niche ek permanent floating jaisa chat container
     with st.sidebar.container():
         st.write("---")
         st.markdown("#### **🤖 MunimJi AI Bot**")
