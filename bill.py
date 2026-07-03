@@ -5,12 +5,10 @@ import os
 import re
 import google.generativeai as genai
 
-# --- GOOGLE GEMINI AI SETUP (100% SECURE FROM LEAKS) ---
-# Yeh line bina code mein jagah chhode direct Streamlit Cloud ke Secrets se chabi uthayegi
+# --- GOOGLE GEMINI AI SETUP ---
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 else:
-    # Local computer par testing ke liye safe fallback, streamlead.io par error nahi dega
     pass
 
 # --- DATA STORAGE MANAGEMENT ---
@@ -27,7 +25,6 @@ def load_my_data():
 if 'business_df' not in st.session_state:
     st.session_state.business_df = load_my_data()
 
-# Dynamic item count ke liye setup
 if 'item_count' not in st.session_state:
     st.session_state.item_count = 1
 
@@ -48,7 +45,6 @@ def save_and_clear_form():
     valid_items = []
     calculated_total = 0.0
     
-    # Har index row se details collect karna
     for i in range(st.session_state.item_count):
         i_name = st.session_state.get(f"item_name_{i}", "").strip()
         i_qty = st.session_state.get(f"item_qty_{i}", 1)
@@ -74,31 +70,28 @@ def save_and_clear_form():
         
         st.toast(f"🎉 {c_name} ka ₹{calculated_total} ka bill save ho gaya!", icon="✅")
         
-        # --- AUTO ERASE FORM DATA ---
+        # --- AUTO ERASE ---
         st.session_state.form_name = ""
         st.session_state.form_city = ""
-        
         for i in range(st.session_state.item_count):
             st.session_state[f"item_name_{i}"] = ""
             st.session_state[f"item_qty_{i}"] = 1
             st.session_state[f"item_price_{i}"] = 0.0
-            
         st.session_state.item_count = 1
     else:
-        st.error("❌ Kripya Customer ka Naam, Shahar aur Kam se kam ek Item ka Price sahi se bharein!")
+        st.error("❌ Kripya saari details sahi se bharein!")
 
 # --- APP INTERFACE ---
 st.title("📊 Smart Business Billing Tracker")
 
-menu = ["📝 Naya Bill Upload Karen", "🔍 Search Dashboard"]
+menu = ["📝 Naya Bill Upload Karen", "🔍 Search Dashboard", "⚙️ Data Modify (Edit / Delete)"]
 choice = st.sidebar.selectbox("Menu Chuniye", menu)
 
 df = st.session_state.business_df
 
-# --- 1. DYNAMIC DATA ENTRY SECTION ---
+# --- 1. DATA ENTRY SECTION ---
 if choice == "📝 Naya Bill Upload Karen":
     st.header("🛍️ Customer Ka Naya Bill Daalein")
-    st.write("Samaan aur keemat likhein, jod (Total) apne aap live niche ho jayega!")
     
     st.text_input("👤 Customer Ka Naam", key="form_name")
     st.text_input("📍 Customer Ka Shahar (City)", key="form_city")
@@ -107,7 +100,6 @@ if choice == "📝 Naya Bill Upload Karen":
     st.subheader("📦 Samaan Ki List (Quantity aur Price Ke Saath)")
     
     running_total = 0.0
-    # Fixed item alignment for 3 unique columns
     for idx in range(st.session_state.item_count):
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -122,89 +114,114 @@ if choice == "📝 Naya Bill Upload Karen":
         st.session_state.item_count += 1
         st.rerun()
 
-    # Dynamic live calculator display
     st.markdown(f"### 💰 Kul Bill Amount: `₹ {running_total:,.2f}`")
     st.button("🚀 Bill Save Karen", on_click=save_and_clear_form)
 
 # --- 2. TABLE SEARCH DASHBOARD ---
 elif choice == "🔍 Search Dashboard":
     st.header("🧐 Normal Table Search")
-    
     if df.empty:
-        st.info("⚠️ Abhi app mein koi data nahi hai. Pehle entries karein.")
+        st.info("⚠️ Abhi app mein koi data nahi hai.")
     else:
-        # Customer Search
-        st.subheader("👤 Customer Ke Naam Se Khojein")
-        search_name = st.text_input("Customer ka naam (e.g., Kalpeshbhai)...").strip()
+        search_name = st.text_input("👤 Customer Ke Naam Se Khojein").strip()
         if search_name:
             mask = df['Customer_Name'].apply(lambda x: smart_match(search_name, x))
-            res = df[mask]
-            st.dataframe(res[['Order_Date', 'Items_List', 'Total_Bill', 'City']], use_container_width=True)
+            st.dataframe(df[mask][['Order_Date', 'City', 'Total_Bill', 'Items_List']], use_container_width=True)
 
-        # City Search
-        st.subheader("📍 Shahar (City) Ke Hisab Se")
-        search_city = st.text_input("Shahar ka naam (e.g., Mumbai)...").strip()
+        search_city = st.text_input("📍 Shahar (City) Ke Hisab Se").strip()
         if search_city:
             mask = df['City'].apply(lambda x: smart_match(search_city, x))
-            res = df[mask]
-            st.dataframe(res[['Customer_Name', 'Items_List', 'Total_Bill', 'Order_Date']], use_container_width=True)
+            st.dataframe(df[mask][['Order_Date', 'Customer_Name', 'Total_Bill', 'Items_List']], use_container_width=True)
 
-# --- ADVANCED AI CHATBOT LOGIC ---
-def ask_gemini_advanced(user_query, df):
-    if "GEMINI_API_KEY" not in st.secrets or st.secrets["GEMINI_API_KEY"] == "":
-        return "⚠️ Kripya share.streamlit.io ki Settings -> Secrets mein apni 'GEMINI_API_KEY' daalein!"
-    
-    data_text = df.to_string(index=False)
-    
-    system_instruction = f"""
-    You are a Smart Business AI Assistant. Below is the sales data of the business:
-    {data_text}
-    
-    The user will ask about a specific product in Hindi, English, or Gujarati (e.g., 'Sarva Aushadhi' or 'Sarva Aushadhi kisne li').
-    Your job is to read the data carefully and output a clean, well-formatted list or table.
-    
-    STRICT RULES FOR YOUR ANSWER:
-    1. Filter out ONLY the customers who bought the requested product.
-    2. For each matching customer, you must extract and display:
-       - Customer Name (कस्टमर का नाम)
-       - City (शहर)
-       - The SPECIFIC QUANTITY of that requested product only (सिर्फ उस प्रोडक्ट की क्वांटिटी जो मांगा गया है).
-       - The Total Bill Amount of that order (उस पूरे बिल का कुल अमाउंट).
-    3. If there are other items in their bill, DO NOT count their quantities, but show the Total Bill of that transaction.
-    4. Respond in a friendly, easy-to-read Hinglish/Hindi or Gujarati table structure so the user can look at it on a phone screen.
-    5. If there's a spelling mistake in the query (e.g., 'sarva ausadi' or 'sarva aosadhi'), understand it smartly using your LLM capability and find the right product data.
-    """
-    
-    try:
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content([system_instruction, user_query])
-        return response.text
-    except Exception as e:
-        return f"❌ AI Connection Error: {str(e)}"
+        search_product = st.text_input("📦 Samaan (Product) Ke Hisab Se").strip()
+        if search_product:
+            mask = df['Items_List'].apply(lambda x: smart_match(search_product, x))
+            st.dataframe(df[mask][['Order_Date', 'Customer_Name', 'City', 'Total_Bill', 'Items_List']], use_container_width=True)
 
-# --- AI BOT POP-UP IN SIDEBAR ---
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🤖 Live AI Assistant")
-open_bot = st.sidebar.checkbox("💬 Open Smart AI Bot", value=True)
-
-if open_bot:
-    with st.sidebar.container():
-        st.write("---")
-        st.markdown("#### **🤖 Om Guru Gautam**")
-        st.write("Aap Hindi/Gujarati/English mein kuch bhi pooch sakte hain:")
+# --- 3. ADVANCED EDIT / DELETE MANAGEMENT (WITH SPECIFIC ITEM DELETE BUTTON) ⚙️ ---
+elif choice == "⚙️ Data Modify (Edit / Delete)":
+    st.header("⚙️ Samaan, Quantity ya Address Badlein")
+    
+    if df.empty:
+        st.info("⚠️ Abhi database khali hai.")
+    else:
+        bill_options = []
+        for index, row in df.iterrows():
+            bill_options.append(f"Index {index} | {row['Customer_Name']} ({row['City']}) - ₹{row['Total_Bill']}")
+            
+        selected_option = st.selectbox("Badalne ke liye Bill Chuniye:", bill_options)
         
-        user_ai_query = st.text_input(
-            "Sawaal Likhein:", 
-            placeholder="e.g., Sarva Aushadhi kone ketli lidhi chhe?",
-            key="ai_query_input"
-        )
-        
-        if st.button("✨ AI Se Poochein"):
-            if user_ai_query:
-                with st.spinner("AI Bill Check Kar Raha Hai..."):
-                    ai_response = ask_gemini_advanced(user_ai_query, df)
-                    st.markdown("---")
-                    st.markdown("**🤖 AI Ka Jawab:**")
-                    st.write(ai_response)
-            else:
-                st.warning("Kripya pehle apna sawaal likhein!")
+        if selected_option:
+            selected_index = int(selected_option.split(" | ").split(" "))
+            selected_row = df.loc[selected_index]
+            
+            st.markdown("---")
+            st.subheader("📝 Bill Sudharen (Edit Section)")
+            
+            # Name, Address, Date inputs
+            edit_name = st.text_input("👤 Customer Name (Naam Badlein)", value=selected_row['Customer_Name'])
+            edit_city = st.text_input("📍 City / Address (Address Badlein)", value=selected_row['City'])
+            edit_date = st.text_input("📅 Date (YYYY-MM-DD)", value=selected_row['Order_Date'])
+            
+            st.markdown("#### 📦 Samaan aur Quantity Sudharen ya Hatayen:")
+            
+            raw_items = [i.strip() for i in selected_row['Items_List'].split(",") if i.strip()]
+            
+            # Temporary state banana items ko tracking par rakhne ke liye
+            if f"current_items_{selected_index}" not in st.session_state:
+                st.session_state[f"current_items_{selected_index}"] = raw_items
+            
+            updated_items_list = []
+            
+            # Har ek item ko table form mein dikhana
+            for idx, item in enumerate(st.session_state[f"current_items_{selected_index}"]):
+                match = re.match(r"(\d+)\s+Kilo/Pcs\s+(.*)", item)
+                if match:
+                    old_qty = int(match.group(1))
+                    old_name = match.group(2)
+                else:
+                    old_qty = 1
+                    old_name = item
+                
+                st.write(f"🔹 **Samaan #{idx+1}**")
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    new_item_name = st.text_input(f"Naam", value=old_name, key=f"edit_item_name_{idx}_{selected_index}")
+                with col2:
+                    new_item_qty = st.number_input(f"Qty", min_value=1, value=old_qty, key=f"edit_item_qty_{idx}_{selected_index}")
+                with col3:
+                    st.write(" ") # Layout balance ke liye
+                    # --- NAYA LAAL RANG KA DELETE BUTTON ---
+                    if st.button("🗑️ Hatayen", key=f"del_item_btn_{idx}_{selected_index}"):
+                        # List se us item ko remove karna
+                        st.session_state[f"current_items_{selected_index}"].pop(idx)
+                        st.rerun()
+                
+                updated_items_list.append(f"{new_item_qty} Kilo/Pcs {new_item_name.strip()}")
+            
+            st.write("---")
+            new_bill_amount = st.number_input("💰 Naya Total Bill Amount (₹)", value=float(selected_row['Total_Bill']))
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("💾 Badlav Save Karen (Update Everything)"):
+                    if edit_name.strip() and edit_city.strip() and updated_items_list:
+                        df.at[selected_index, 'Customer_Name'] = edit_name.strip()
+                        df.at[selected_index, 'City'] = edit_city.strip()
+                        df.at[selected_index, 'Order_Date'] = edit_date.strip()
+                        df.at[selected_index, 'Items_List'] = ", ".join(updated_items_list)
+                        df.at[selected_index, 'Total_Bill'] = float(new_bill_amount)
+                        
+                        st.session_state.business_df = df
+                        df.to_csv(DATA_FILE, index=False)
+                        
+                        # Storage clean up badlav ke baad
+                        del st.session_state[f"current_items_{selected_index}"]
+                        
+                        st.success("✅ Aapka badlav sahi se update ho gaya!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Kripya dhyan dein ki Naam, Shahar aur kam se kam ek Samaan hona zaroori hai!")
+                        
+            with col2:
+                if st.button("🗑️ Yeh Poora Bill Delete Karen"):
